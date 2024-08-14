@@ -12,5 +12,7 @@ export const MyCalendar: React.FC<MyCalendarProps> = ({
   onSelect,
   cellRender,
 }) => {
-  return <Calendar cellRender={cellRender} onSelect={onSelect} />;
+  return (
+    <Calendar cellRender={cellRender} onSelect={onSelect} /> //fullscreen={false}
+  );
 };

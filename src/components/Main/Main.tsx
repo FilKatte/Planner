@@ -1,22 +1,15 @@
 import React, { ChangeEvent, useState } from "react";
 
-import type { BadgeProps, CalendarProps } from "antd";
-import {
-  Typography,
-  Layout,
-  theme,
-  Button,
-  Badge,
-  Flex,
-  Modal,
-  Input,
-  Select,
-} from "antd";
-import { EditOutlined, DeleteOutlined } from "@ant-design/icons";
+import type { CalendarProps } from "antd";
+import { Typography, Layout, theme, Button, Flex } from "antd";
 import type { Dayjs } from "dayjs";
 import dayjs from "dayjs";
 
 import { MyCalendar } from "../Calendar/Calendar";
+import { EventsList } from "../EventsList/EventsList";
+import { AddEventModal } from "../AddEventModal/AddEventModal";
+import { EventsContainer } from "../EventsContainer/EventsContainer";
+import { selectColorOptions } from "./Main.constants";
 
 const { Content, Footer } = Layout;
 
@@ -25,10 +18,10 @@ export const Main: React.FC = () => {
     token: { colorBgContainer, borderRadiusLG },
   } = theme.useToken();
 
-  const [value, setValue] = useState(() => dayjs(Date()));
+  const [selectedDate, setSelectedDate] = useState(() => dayjs(Date()));
 
-  const onSelect = (newValue: Dayjs) => {
-    setValue(newValue);
+  const onSelectDate = (newDate: Dayjs) => {
+    setSelectedDate(newDate);
   };
 
   const [inputValue, setInputValue] = useState("");
@@ -47,21 +40,12 @@ export const Main: React.FC = () => {
     setIsModalOpen(false);
   };
 
-  const selectOptions = [
-    { value: "default", label: <Badge status="default" text="default" /> },
-    { value: "success", label: <Badge status="success" text="success" /> },
-    {
-      value: "processing",
-      label: <Badge status="processing" text="processing" />,
-    },
-    { value: "warning", label: <Badge status="warning" text="warning" /> },
-    { value: "error", label: <Badge status="error" text="error" /> },
-  ];
-
-  const [selectValue, setSelectValue] = useState(selectOptions[0].value);
+  const [selectedColor, setSelectedColor] = useState(
+    selectColorOptions[0].value
+  );
 
   const onSelectChange = (value: string) => {
-    setSelectValue(value);
+    setSelectedColor(value);
   };
 
   const localListData: {
@@ -71,48 +55,39 @@ export const Main: React.FC = () => {
   const [listData, setListData] = useState(localListData);
 
   const handleOk = () => {
-    const currentDateInList = listData[value.date()] || [];
+    const dateValue = selectedDate.format("MM-DD-YYYY");
+    const currentDateInList = listData[dateValue] || [];
 
     const data = [
       ...currentDateInList,
-      { type: selectValue, content: inputValue, id: currentDateInList.length },
+      {
+        type: selectedColor,
+        content: inputValue,
+        id: currentDateInList.length,
+      },
     ];
 
     setListData({
       ...listData,
-      [value.date()]: data,
+      [dateValue]: data,
     });
 
     localStorage.setItem(
       "listData",
       JSON.stringify({
         ...listData,
-        [value.date()]: data,
+        [dateValue]: data,
       })
     );
 
-    setSelectValue(selectOptions[0].value);
+    setSelectedColor(selectColorOptions[0].value);
     setInputValue("");
     setIsModalOpen(false);
   };
 
-  const getMonthData = (value: Dayjs) => {
-    if (value.month() === 8) {
-      return 1394;
-    }
-  };
-
-  const monthCellRender = (value: Dayjs) => {
-    const num = getMonthData(value);
-    return num ? (
-      <div className="notes-month">
-        <section>{num}</section>
-        <span>Backlog number</span>
-      </div>
-    ) : null;
-  };
-
-  const [isShowInput, setIsShowInput] = useState(false);
+  const [isShowInput, setIsShowInput] = useState<{ [key: number]: boolean }>(
+    {}
+  );
 
   const [inputEditValue, setInputEditValue] = useState("");
 
@@ -121,15 +96,16 @@ export const Main: React.FC = () => {
   };
 
   const dateCellRender = (value: Dayjs, withEditButton?: boolean) => {
-    const list = listData[value.date()] || [];
+    const dateValue = value.format("MM-DD-YYYY");
+    const list = listData[dateValue] || [];
 
-    const onEditClick = (value: string) => {
-      setIsShowInput(true);
+    const onEditClick = (value: string, id: number) => {
+      setIsShowInput({ ...isShowInput, [id]: true });
       setInputEditValue(value);
     };
 
     const onSave = (id: number) => {
-      const currentDateInList = listData[value.date()] || [];
+      const currentDateInList = listData[dateValue] || [];
 
       const newValue = currentDateInList.map((el) =>
         el.id === id ? { ...el, content: inputEditValue } : el
@@ -137,92 +113,68 @@ export const Main: React.FC = () => {
 
       setListData({
         ...listData,
-        [value.date()]: newValue,
+        [dateValue]: newValue,
       });
 
       localStorage.setItem(
         "listData",
         JSON.stringify({
           ...listData,
-          [value.date()]: newValue,
+          [dateValue]: newValue,
         })
       );
 
       setInputEditValue("");
-      setIsShowInput(false);
+      setIsShowInput({ ...isShowInput, [id]: false });
     };
 
     const onDeleteClick = (id: number) => {
-      const currentDateInList = listData[value.date()] || [];
+      const currentDateInList = listData[dateValue] || [];
 
       const newList = currentDateInList.filter((el) => el.id !== id);
 
       setListData({
         ...listData,
-        [value.date()]: newList,
+        [dateValue]: newList,
       });
 
       localStorage.setItem(
         "listData",
         JSON.stringify({
           ...listData,
-          [value.date()]: newList,
+          [dateValue]: newList,
         })
       );
     };
 
     return (
-      <ul style={{ padding: 0, margin: 0, listStyle: "none" }}>
-        {list.map((item) => (
-          <li key={item.content}>
-            {isShowInput ? (
-              <>
-                <Input
-                  placeholder={item.content}
-                  value={inputEditValue}
-                  onChange={onChangeEditInputValue}
-                />
-                <Button
-                  type="primary"
-                  onClick={() => onSave(item.id)}
-                  size="small"
-                >
-                  ok
-                </Button>
-              </>
-            ) : (
-              <>
-                {" "}
-                <Badge
-                  status={item.type as BadgeProps["status"]}
-                  text={item.content}
-                  style={{
-                    overflow: "hidden",
-                    whiteSpace: "nowrap",
-                    textOverflow: "ellipsis",
-                  }}
-                />
-                {withEditButton && (
-                  <>
-                    {" "}
-                    <Button
-                      shape="circle"
-                      icon={<EditOutlined />}
-                      onClick={() => onEditClick(item.content)}
-                    />
-                    <Button
-                      shape="circle"
-                      icon={<DeleteOutlined />}
-                      onClick={() => onDeleteClick(item.id)}
-                    />
-                  </>
-                )}
-              </>
-            )}
-          </li>
-        ))}
-      </ul>
+      <EventsContainer
+        list={list}
+        withEditButton={withEditButton}
+        isShowInput={isShowInput}
+        inputEditValue={inputEditValue}
+        onChangeEditInputValue={onChangeEditInputValue}
+        onSave={onSave}
+        onEditClick={onEditClick}
+        onDeleteClick={onDeleteClick}
+      />
     );
+  };
+
+  const monthCellRender = (value: Dayjs) => {
+    const dateValue = value.format("MM-DD-YYYY");
+    const list = Object.entries(listData) || [];
+
+    const events = list
+      .filter(
+        ([key]) =>
+          key.slice(0, 2) === dateValue.slice(0, 2) &&
+          key.slice(6) === dateValue.slice(6)
+      )
+      ?.map(([_, value]) => value)
+      ?.flat();
+
+    return events.length > 0 ? <EventsContainer list={events} /> : null;
   };
 
   const cellRender: CalendarProps<Dayjs>["cellRender"] = (current, info) => {
@@ -252,44 +204,25 @@ export const Main: React.FC = () => {
             </Flex>
 
             <Flex style={{ marginBottom: 24 }}>
-              <MyCalendar cellRender={cellRender} onSelect={onSelect} />
-              <Flex
-                style={{
-                  padding: "12px 4px",
-                  margin: 8,
-                  border: "2px solid lightgray",
-                  minWidth: 180,
-                }}
-                vertical
-              >
-                <div style={{ marginBottom: 16 }}>
-                  События на {value.format("MM-DD-YYYY")}
-                </div>
-                {dateCellRender(value, true)}
-              </Flex>
+              <MyCalendar cellRender={cellRender} onSelect={onSelectDate} />
+              <EventsList date={selectedDate}>
+                {dateCellRender(selectedDate, true)}
+              </EventsList>
             </Flex>
           </div>
 
-          <Modal
-            title="Basic Modal"
-            open={isModalOpen}
-            onOk={handleOk}
-            onCancel={handleCancel}
-          >
-            <p>Введите событие</p>
-            <Input
-              placeholder="Событие..."
-              value={inputValue}
-              onChange={onChangeInputValue}
-            />
-            <p>Выберите цвет</p>
-            <Select
-              onChange={onSelectChange}
-              options={selectOptions}
-              value={selectValue}
-            />
-          </Modal>
+          <AddEventModal
+            isModalOpen={isModalOpen}
+            onAddEventClick={handleOk}
+            onCancelModalClick={handleCancel}
+            inputValue={inputValue}
+            onChangeInputValue={onChangeInputValue}
+            onSelectColorChange={onSelectChange}
+            selectColorsOptions={selectColorOptions}
+            selectColorValue={selectedColor}
+          />
         </Content>
+
         <Footer style={{ textAlign: "center" }}>
           Ant Design ©{new Date().getFullYear()} Created by Ant UED
         </Footer>
